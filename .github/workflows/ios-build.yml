@@ -32,17 +32,12 @@ jobs:
 
       - name: Verificar proyecto
         run: |
-          pwd
           test -f pubspec.yaml
           test -d ios/Runner.xcodeproj
-          echo "Proyecto Flutter encontrado correctamente"
+          echo "Proyecto encontrado"
 
-      - name: Instalar dependencias Flutter
+      - name: Instalar dependencias
         run: flutter pub get
-
-      - name: Analizar proyecto
-        run: flutter analyze
-        continue-on-error: true
 
       - name: Compilar iOS Release
         run: |
@@ -53,17 +48,18 @@ jobs:
       - name: Verificar Runner.app
         run: |
           test -d build/ios/iphoneos/Runner.app
-          ls -la build/ios/iphoneos/Runner.app
           echo "Runner.app generado correctamente"
 
       - name: Crear IPA
         run: |
-          rm -rf ../../Payload
-          mkdir ../../Payload
+          rm -rf "$RUNNER_TEMP/Payload"
+          mkdir -p "$RUNNER_TEMP/Payload"
 
-          cp -R build/ios/iphoneos/Runner.app ../../Payload/Runner.app
+          cp -R \
+            build/ios/iphoneos/Runner.app \
+            "$RUNNER_TEMP/Payload/Runner.app"
 
-          cd ../..
+          cd "$RUNNER_TEMP"
 
           ditto \
             -c \
@@ -71,24 +67,29 @@ jobs:
             --sequesterRsrc \
             --keepParent \
             Payload \
-            AppBichos-unsigned.ipa
+            "$GITHUB_WORKSPACE/AppBichos-unsigned.ipa"
 
-      - name: Verificar estructura IPA
+          echo "IPA creado en:"
+          ls -lh "$GITHUB_WORKSPACE/AppBichos-unsigned.ipa"
+
+      - name: Verificar IPA
         working-directory: .
         run: |
-          echo "=== CONTENIDO DEL IPA ==="
-          unzip -l AppBichos-unsigned.ipa | head -80
+          test -f "$GITHUB_WORKSPACE/AppBichos-unsigned.ipa"
 
-          if unzip -l AppBichos-unsigned.ipa | grep -q "Payload/Runner.app/Runner.app"; then
-            echo "ERROR: Runner.app esta duplicado"
+          unzip -l "$GITHUB_WORKSPACE/AppBichos-unsigned.ipa" | head -60
+
+          if unzip -l "$GITHUB_WORKSPACE/AppBichos-unsigned.ipa" | grep -q "Payload/Runner.app/Runner.app"; then
+            echo "ERROR: Runner.app duplicado"
             exit 1
           fi
 
-          echo "IPA empaquetado correctamente"
+          echo "IPA correcto"
 
       - name: Guardar IPA
         uses: actions/upload-artifact@v4
         with:
           name: AppBichos-iOS-unsigned
-          path: AppBichos-unsigned.ipa
+          path: ${{ github.workspace }}/AppBichos-unsigned.ipa
+          if-no-files-found: error
           retention-days: 7
