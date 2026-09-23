@@ -10,6 +10,10 @@ jobs:
   build-ios:
     runs-on: macos-26
 
+    defaults:
+      run:
+        working-directory: app_bichos
+
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
@@ -26,41 +30,40 @@ jobs:
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
-      - name: Encontrar proyecto Flutter
+      - name: Verificar proyecto
         run: |
-          PUBSPEC=$(find . -name pubspec.yaml -not -path "*/build/*" | head -1)
+          pwd
+          test -f pubspec.yaml
+          test -d ios/Runner.xcodeproj
+          echo "Proyecto Flutter encontrado correctamente"
 
-          if [ -z "$PUBSPEC" ]; then
-            echo "ERROR: No se encontro pubspec.yaml"
-            exit 1
-          fi
+      - name: Instalar dependencias Flutter
+        run: flutter pub get
 
-          FLUTTER_DIR=$(dirname "$PUBSPEC")
+      - name: Analizar proyecto
+        run: flutter analyze
+        continue-on-error: true
 
-          echo "Proyecto Flutter encontrado en: $FLUTTER_DIR"
-          echo "FLUTTER_DIR=$FLUTTER_DIR" >> "$GITHUB_ENV"
-
-      - name: Instalar dependencias
+      - name: Compilar iOS Release
         run: |
-          cd "$FLUTTER_DIR"
-          flutter pub get
+          flutter build ios \
+            --release \
+            --no-codesign
 
-      - name: Instalar CocoaPods
+      - name: Verificar Runner.app
         run: |
-          cd "$FLUTTER_DIR/ios"
-          pod install --repo-update
-
-      - name: Compilar iOS
-        run: |
-          cd "$FLUTTER_DIR"
-          flutter build ios --release --no-codesign
+          test -d build/ios/iphoneos/Runner.app
+          ls -la build/ios/iphoneos/Runner.app
+          echo "Runner.app generado correctamente"
 
       - name: Crear IPA
         run: |
-          rm -rf Payload
-          mkdir Payload
+          rm -rf ../../Payload
+          mkdir ../../Payload
 
-          cp -R "$FLUTTER_DIR/build/ios/iphoneos/Runner.app" Payload/Runner.app
+          cp -R build/ios/iphoneos/Runner.app ../../Payload/Runner.app
+
+          cd ../..
 
           ditto \
             -c \
@@ -70,13 +73,22 @@ jobs:
             Payload \
             AppBichos-unsigned.ipa
 
-      - name: Verificar IPA
+      - name: Verificar estructura IPA
+        working-directory: .
         run: |
-          unzip -l AppBichos-unsigned.ipa | head -60
+          echo "=== CONTENIDO DEL IPA ==="
+          unzip -l AppBichos-unsigned.ipa | head -80
+
+          if unzip -l AppBichos-unsigned.ipa | grep -q "Payload/Runner.app/Runner.app"; then
+            echo "ERROR: Runner.app esta duplicado"
+            exit 1
+          fi
+
+          echo "IPA empaquetado correctamente"
 
       - name: Guardar IPA
         uses: actions/upload-artifact@v4
         with:
-          name: AppBichos-iOS
+          name: AppBichos-iOS-unsigned
           path: AppBichos-unsigned.ipa
           retention-days: 7
