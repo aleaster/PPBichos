@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "115115884918",
+    "project_id": "bdbichos",
+    "storage_bucket": "bdbichos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:115115884918:android:03c315b5e86f525bea7a57",
+        "android_client_info": {
+          "package_name": "com.example.app_bichos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB49JEkSRZnoNDZopDU2pAaTvOJYCZT06U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
