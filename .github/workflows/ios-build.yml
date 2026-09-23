@@ -26,24 +26,49 @@ jobs:
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
+      - name: Encontrar proyecto Flutter
+        run: |
+          PUBSPEC=$(find . -name pubspec.yaml -not -path "*/build/*" | head -1)
+
+          if [ -z "$PUBSPEC" ]; then
+            echo "ERROR: No se encontro pubspec.yaml"
+            exit 1
+          fi
+
+          FLUTTER_DIR=$(dirname "$PUBSPEC")
+
+          echo "Proyecto Flutter encontrado en: $FLUTTER_DIR"
+          echo "FLUTTER_DIR=$FLUTTER_DIR" >> "$GITHUB_ENV"
+
       - name: Instalar dependencias
-        run: flutter pub get
+        run: |
+          cd "$FLUTTER_DIR"
+          flutter pub get
 
       - name: Instalar CocoaPods
         run: |
-          cd ios
+          cd "$FLUTTER_DIR/ios"
           pod install --repo-update
 
       - name: Compilar iOS
         run: |
+          cd "$FLUTTER_DIR"
           flutter build ios --release --no-codesign
 
       - name: Crear IPA
         run: |
           rm -rf Payload
           mkdir Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
-          ditto -c -k --sequesterRsrc --keepParent Payload AppBichos-unsigned.ipa
+
+          cp -R "$FLUTTER_DIR/build/ios/iphoneos/Runner.app" Payload/Runner.app
+
+          ditto \
+            -c \
+            -k \
+            --sequesterRsrc \
+            --keepParent \
+            Payload \
+            AppBichos-unsigned.ipa
 
       - name: Verificar IPA
         run: |
