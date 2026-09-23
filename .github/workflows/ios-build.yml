@@ -1,0 +1,57 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Ver versiones
+        run: |
+          flutter --version
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Instalar CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Compilar iOS
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Crear IPA
+        run: |
+          rm -rf Payload
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
+          ditto -c -k --sequesterRsrc --keepParent Payload AppBichos-unsigned.ipa
+
+      - name: Verificar IPA
+        run: |
+          unzip -l AppBichos-unsigned.ipa | head -60
+
+      - name: Guardar IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppBichos-iOS
+          path: AppBichos-unsigned.ipa
+          retention-days: 7
